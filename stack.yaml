@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description:
+Parameters:
+  Name:
+    Type: String
+    Description: Resource name
+    MinLength: 3
+    AllowedPattern: "[a-zA-Z0-9-]+"
+Resources:
+  Lambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt LambdaRole.Arn
+      FunctionName: !Ref Name
+      Code:
+      Runtime: python3.12
+      Timeout: 10
+      MemorySize: 128
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: Runtime
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
