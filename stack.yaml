@@ -1,26 +1,30 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description:
+Description: "Create a Lambda function to rotate Snowflake credentials in AWS Secrets Manager"
 Parameters:
   Name:
     Type: String
-    Description: Resource name
+    Description: "Resource name"
     MinLength: 3
     AllowedPattern: "[a-zA-Z0-9-]+"
+
 Resources:
   Lambda:
     Type: AWS::Lambda::Function
     Properties:
-      Handler: index.handler
-      Role: !GetAtt LambdaRole.Arn
-      FunctionName: !Ref Name
-      Code:
+      FunctionName: !Sub "${Name}-lambda"
+      Description: "AWS Secrets Manager Snowflake Rotation Lambda"
+      Handler: lambda.handler
       Runtime: python3.12
-      Timeout: 10
+      Role: !GetAtt Role.Arn
+      Timeout: 30
       MemorySize: 128
+      Code: ./lambda.py
 
-  LambdaRole:
+  Role:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: !Sub "${Name}-role"
+      Description: "Role for AWS Secrets Manager Snowflake Rotation Lambda"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -35,7 +39,21 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
-                Resource: arn:aws:logs:*:*:*
+                Resource: !GetAtt LogGroup.Arn
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${Name}-lambda"
+      RetentionInDays: 30
+
+Outputs:
+  Lambda:
+    Description: Lambda ARN
+    Value: !GetAtt Lambda.Arn
+
+  Role:
+    Description: Role ARN
+    Value: !GetAtt Role.Arn
