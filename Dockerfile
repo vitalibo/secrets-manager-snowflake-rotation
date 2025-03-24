@@ -1,1 +1,0 @@
-FROM amazonlinux:2

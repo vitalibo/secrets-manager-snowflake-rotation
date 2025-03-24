@@ -19,6 +19,16 @@ Resources:
       Timeout: 30
       MemorySize: 128
       Code: ./lambda.py
+      Layers:
+        - !Ref Layer
+
+  Layer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      LayerName: !Sub "${Name}-layer"
+      Content: ./target/layer.zip
+      CompatibleRuntimes:
+        - python3.12
 
   Role:
     Type: AWS::IAM::Role
