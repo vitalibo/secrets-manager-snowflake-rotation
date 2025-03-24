@@ -109,9 +109,8 @@ def set_secret(service_client, arn, token):
     if not conn:
         raise ValueError('Unable to log into Snowflake using credentials in master secret %s' % master_arn)
 
-    current_fingerprint = calculate_fingerprint(current_dict['public_key'])
-    fingerprint = get_public_key_fingerprint(conn, current_dict['user'], 'RSA_PUBLIC_KEY')
-    property_name = 'RSA_PUBLIC_KEY' if current_fingerprint == fingerprint else 'RSA_PUBLIC_KEY_2'
+    current_public_key_fp = calculate_fingerprint(current_dict['public_key'])
+    property_name = get_public_key_property(conn, current_dict['user'], current_public_key_fp)
 
     try:
         sql_stmt = "ALTER USER %s SET %s='%s'" % (pending_dict['user'], property_name, pending_dict['public_key'])
@@ -183,26 +182,28 @@ def generate_key_pair():
     Generate a new RSA key pair
     """
 
-    cmd = 'openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out rsa_key.p8 -nocrypt'
-    subprocess.run(cmd, shell=True)
+    cmd = 'openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out /tmp/rsa_key.p8 -nocrypt'
+    out = subprocess.run(cmd, shell=True, capture_output=True)
+    if out.returncode != 0:
+        raise ValueError(out.stderr.decode())
 
-    with open('rsa_key.p8') as f:
-        private_key = f.read()
+    with open('/tmp/rsa_key.p8') as f:
         private_key = (
-            private_key
+            f.read()
             .strip()
             .removeprefix('-----BEGIN PRIVATE KEY-----')
             .removesuffix('-----END PRIVATE KEY-----')
             .replace('\n', '')
         )
 
-    cmd = 'openssl rsa -in rsa_key.p8 -pubout -out rsa_key.pub'
-    subprocess.run(cmd, shell=True)
+    cmd = 'openssl rsa -in /tmp/rsa_key.p8 -pubout -out /tmp/rsa_key.pub'
+    out = subprocess.run(cmd, shell=True, capture_output=True)
+    if out.returncode != 0:
+        raise ValueError(out.stderr.decode())
 
-    with open('rsa_key.pub') as f:
-        public_key = f.read()
+    with open('/tmp/rsa_key.pub') as f:
         public_key = (
-            public_key
+            f.read()
             .strip()
             .removeprefix('-----BEGIN PUBLIC KEY-----')
             .removesuffix('-----END PUBLIC KEY-----')
@@ -217,12 +218,16 @@ def get_connection(secret_dict, use_admin=False):
     Get a connection to Snowflake
     """
 
-    return connector.connect(
-        user=secret_dict['user'],
-        account=secret_dict['account'],
-        private_key=secret_dict['private_key'],
-        role='ACCOUNTADMIN' if use_admin else None
-    )
+    try:
+        return connector.connect(
+            user=secret_dict['user'],
+            account=secret_dict['account'],
+            private_key=secret_dict['private_key'],
+            role='ACCOUNTADMIN' if use_admin else None
+        )
+    except Exception as e:
+        logger.warning('Unable to connect to Snowflake: %s' % e)
+        return None
 
 
 def calculate_fingerprint(public_key):
@@ -230,18 +235,36 @@ def calculate_fingerprint(public_key):
     Calculate the fingerprint of a public key
     """
 
-    cmd = 'openssl rsa -pubin -in rsa_key.pub -outform DER | openssl dgst -sha256 -binary | openssl enc -base64'
-    return subprocess.run(cmd, shell=True, capture_output=True, text=True).stdout.strip()
+    cmd = ' | '.join((
+        'echo "-----BEGIN PUBLIC KEY-----\n%s\n-----END PUBLIC KEY-----"' % public_key,
+        'openssl rsa -pubin -pubout -outform DER',
+        'openssl dgst -sha256 -binary',
+        'openssl enc -base64'
+    ))
+
+    out = subprocess.run(cmd, shell=True, capture_output=True)
+    if out.returncode != 0:
+        raise ValueError(out.stderr.decode())
+
+    return out.stdout.decode().strip()
 
 
-def get_public_key_fingerprint(conn, user, property_name):
+def get_public_key_property(conn, user, rsa_public_key_fp):
     """
-    Get the fingerprint of a public key in Snowflake
+    Get free or unused Public Key property for a user
     """
 
-    sql_stmt = f"DESC USER {user}"
+    sql_stmt = f'DESC USER {user}'
     cur = conn.cursor()
     cur.execute(sql_stmt)
+
+    properties = []
     for row in cur:
-        if row[0] == property_name:
-            return row[1].strip()
+        if row[0] in ('RSA_PUBLIC_KEY_FP', 'RSA_PUBLIC_KEY_2_FP'):
+            fingerprint = row[1].strip()[len('SHA256:') + 1:]
+            if not fingerprint:
+                return row[0][:-3]
+            if fingerprint != rsa_public_key_fp:
+                properties.append(row[0][:-3])
+
+    return properties[0]
