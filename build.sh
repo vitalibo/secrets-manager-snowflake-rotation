@@ -3,7 +3,15 @@
 set -e
 cd $(dirname $0)
 
-PYTHON_VERSION=3.12
+if [[ $# -ne 1 ]] ;  then
+  echo "Usage: $0 <python>"
+  echo ''
+  echo 'Options:'
+  echo '  python         Python version to use'
+  exit 1
+fi
+
+PYTHON_VERSION=$1
 
 rm -rf target
 mkdir -p target/python/lib/python$PYTHON_VERSION/site-packages target/bin target/lib
