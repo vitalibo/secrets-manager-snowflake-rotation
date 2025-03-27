@@ -4,7 +4,7 @@ import os
 import subprocess
 
 import boto3
-from snowflake import connector
+import snowflake.connector as connector
 
 logger = logging.getLogger()
 logger.setLevel(os.environ.get('LOG_LEVEL', logging.INFO))
@@ -215,17 +215,21 @@ def generate_key_pair():
 
 def get_connection(secret_dict, use_admin=False):
     """
-    Get a connection to Snowflake
+    Get a connection to Snowflake using the provided secret dictionary.
     """
 
     try:
-        return connector.connect(
-            user=secret_dict['user'],
-            account=secret_dict['account'],
-            private_key=secret_dict['private_key'],
-            role='ACCOUNTADMIN' if use_admin else None
-        )
-    except Exception as e:  # pylint: disable=broad-except
+        kwargs = {
+            'user': secret_dict['user'],
+            'account': secret_dict['account'],
+            'private_key': secret_dict['private_key'],
+        }
+
+        if use_admin:
+            kwargs['role'] = 'ACCOUNTADMIN'
+
+        return connector.connect(**kwargs)
+    except connector.errors.Error as e:
         logger.warning('Unable to connect to Snowflake: %s', e)
         return None
 
