@@ -10,7 +10,7 @@ install:
 codestyle:
 	isort lambda*.py -l 120 -m 3
 	wget -q 'https://raw.githubusercontent.com/vitalibo/pylint-rules/master/.pylintrc' -O .pylintrc
-	pylint lambda*.py --rcfile .pylintrc
+	pylint lambda*.py --rcfile .pylintrc --disable=C0209
 
 test:
 	pytest -v -p no:cacheprovider --disable-warnings ./lambda_test.py

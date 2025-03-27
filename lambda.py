@@ -10,7 +10,7 @@ logger = logging.getLogger()
 logger.setLevel(os.environ.get('LOG_LEVEL', logging.INFO))
 
 
-def handler(event, context):
+def handler(event, context):  # pylint: disable=unused-argument
     """
     Secrets Manager Snowflake Handler
     """
@@ -30,7 +30,7 @@ def handler(event, context):
         raise ValueError('Secret version %s has no stage for rotation of secret %s.' % (token, arn))
 
     if 'AWSCURRENT' in versions[token]:
-        logger.info('Secret version %s already set as AWSCURRENT for secret %s.' % (token, arn))
+        logger.info('Secret version %s already set as AWSCURRENT for secret %s.', token, arn)
         return
 
     elif 'AWSPENDING' not in versions[token]:
@@ -61,7 +61,7 @@ def create_secret(service_client, arn, token):
 
     try:
         get_secret_dict(service_client, arn, 'AWSPENDING', token)
-        logger.info('Successfully retrieved secret for %s.' % arn)
+        logger.info('Successfully retrieved secret for %s.', arn)
     except service_client.exceptions.ResourceNotFoundException:
         private_key, public_key = generate_key_pair()
 
@@ -70,7 +70,7 @@ def create_secret(service_client, arn, token):
 
         service_client.put_secret_value(SecretId=arn, ClientRequestToken=token,
                                         SecretString=json.dumps(current_dict), VersionStages=['AWSPENDING'])
-        logger.info('Successfully put secret for ARN %s and version %s.' % (arn, token))
+        logger.info('Successfully put secret for ARN %s and version %s.', arn, token)
 
 
 def set_secret(service_client, arn, token):
@@ -84,7 +84,7 @@ def set_secret(service_client, arn, token):
     conn = get_connection(pending_dict)
     if conn:
         conn.close()
-        logger.info('AWSPENDING secret is already set as RSA public key in Snowflake for secret arn %s.' % arn)
+        logger.info('AWSPENDING secret is already set as RSA public key in Snowflake for secret arn %s.', arn)
         return
 
     if current_dict['user'] != pending_dict['user']:
@@ -116,8 +116,8 @@ def set_secret(service_client, arn, token):
         sql_stmt = "ALTER USER %s SET %s='%s'" % (pending_dict['user'], property_name, pending_dict['public_key'])
         cur = conn.cursor()
         cur.execute(sql_stmt)
-        logger.info('Successfully set RSA public key for user %s in Snowflake for secret arn %s.' % (
-            pending_dict['user'], arn))
+        logger.info('Successfully set RSA public key for user %s in Snowflake for secret arn %s.',
+                    pending_dict['user'], arn)
     finally:
         conn.close()
 
@@ -127,12 +127,12 @@ def test_secret(service_client, arn, token):
     Test the pending secret in the database
     """
 
-    conn = get_connection(get_secret_dict(service_client, arn, "AWSPENDING", token))
+    conn = get_connection(get_secret_dict(service_client, arn, 'AWSPENDING', token))
     if not conn:
         raise ValueError('Unable to log into database with pending secret of secret ARN %s' % arn)
 
     conn.close()
-    logger.info('Successfully signed into Snowflake with AWSPENDING secret in %s.' % arn)
+    logger.info('Successfully signed into Snowflake with AWSPENDING secret in %s.', arn)
 
 
 def finish_secret(service_client, arn, token):
@@ -145,14 +145,14 @@ def finish_secret(service_client, arn, token):
     for version in metadata['VersionIdsToStages']:
         if 'AWSCURRENT' in metadata['VersionIdsToStages'][version]:
             if version == token:
-                logger.info('Version %s already marked as AWSCURRENT for %s' % (version, arn))
+                logger.info('Version %s already marked as AWSCURRENT for %s', version, arn)
                 return
             current_version = version
             break
 
     service_client.update_secret_version_stage(SecretId=arn, VersionStage='AWSCURRENT', MoveToVersionId=token,
                                                RemoveFromVersionId=current_version)
-    logger.info('Successfully set AWSCURRENT stage to version %s for secret %s.' % (token, arn))
+    logger.info('Successfully set AWSCURRENT stage to version %s for secret %s.', token, arn)
 
 
 def get_secret_dict(service_client, arn, stage, token=None):
@@ -183,11 +183,11 @@ def generate_key_pair():
     """
 
     cmd = 'openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out /tmp/rsa_key.p8 -nocrypt'
-    out = subprocess.run(cmd, shell=True, capture_output=True)
-    if out.returncode != 0:
+    out = subprocess.run(cmd, shell=True, check=False, capture_output=True)
+    if out.returncode:
         raise ValueError(out.stderr.decode())
 
-    with open('/tmp/rsa_key.p8') as f:
+    with open('/tmp/rsa_key.p8', 'r', encoding='utf-8') as f:
         private_key = (
             f.read()
             .strip()
@@ -197,11 +197,11 @@ def generate_key_pair():
         )
 
     cmd = 'openssl rsa -in /tmp/rsa_key.p8 -pubout -out /tmp/rsa_key.pub'
-    out = subprocess.run(cmd, shell=True, capture_output=True)
-    if out.returncode != 0:
+    out = subprocess.run(cmd, shell=True, check=False, capture_output=True)
+    if out.returncode:
         raise ValueError(out.stderr.decode())
 
-    with open('/tmp/rsa_key.pub') as f:
+    with open('/tmp/rsa_key.pub', 'r', encoding='utf-8') as f:
         public_key = (
             f.read()
             .strip()
@@ -225,8 +225,8 @@ def get_connection(secret_dict, use_admin=False):
             private_key=secret_dict['private_key'],
             role='ACCOUNTADMIN' if use_admin else None
         )
-    except Exception as e:
-        logger.warning('Unable to connect to Snowflake: %s' % e)
+    except Exception as e:  # pylint: disable=broad-except
+        logger.warning('Unable to connect to Snowflake: %s', e)
         return None
 
 
@@ -242,8 +242,8 @@ def calculate_fingerprint(public_key):
         'openssl enc -base64'
     ))
 
-    out = subprocess.run(cmd, shell=True, capture_output=True)
-    if out.returncode != 0:
+    out = subprocess.run(cmd, shell=True, check=False, capture_output=True)
+    if out.returncode:
         raise ValueError(out.stderr.decode())
 
     return out.stdout.decode().strip()
