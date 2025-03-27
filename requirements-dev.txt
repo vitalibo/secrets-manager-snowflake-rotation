@@ -1,1 +1,4 @@
 boto3==1.37.18
+pylint==3.0.3
+pytest==8.3.4
+isort==5.13.2
