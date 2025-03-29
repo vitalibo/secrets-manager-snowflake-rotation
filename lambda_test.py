@@ -4,6 +4,22 @@ from unittest import mock
 import pytest
 
 
+def test_calculate_public_key_fingerprint():
+    public_key = \
+        'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtC/9FsVadzKSINLr/XiB' \
+        'Xov78gcKfTmRSMQZgRF0Zbc3kBxVzLdEqjFkU5hZRLdso35jW6+Db0hwv2sXYvHk' \
+        'GpMfk1fSQdTgp9hyj+yXLV0VNSqfCLIA1Pma/ti2siirZYoJ3OKd3ecQ2YJguI6T' \
+        'weTr3REX2k6IvOYUpUHlE6ayF0vAZ7+k4PkuGDvTcc++e/jrW7qnGSS4Tv3Ctiq8' \
+        'xDHFi+/BQTPRK5JTn6PSk7zxRSwi9VSVzRxJPb4pqsnSzmZpd3e2U+pYqWqQGU7x' \
+        'iKaH2sWqQgWt3ym1ee+q+VAEyFCWWffx43xDU4YdLD7Oadkr8hl2NDXspr1tVycw' \
+        'SQIDAQAB'
+
+    _lambda = importlib.import_module('lambda')
+    actual = _lambda.calculate_public_key_fingerprint(public_key)
+
+    assert actual == 'LZA+fUAlY+/ddCn8doeOlv63ltihKHvpDMKnIeNyv4A='
+
+
 def test_get_connection():
     with mock.patch('lambda.connector') as mock_connector:
         mock_connect = mock.Mock()
@@ -15,7 +31,8 @@ def test_get_connection():
         actual = _lambda.get_connection(secret_dict, use_admin=False)
 
         assert actual == mock_connect
-        mock_connector.connect.assert_called_once_with(user='smith', account='mycompany', private_key='<private_key>')
+        mock_connector.connect.assert_called_once_with(
+            user='smith', account='mycompany', private_key='<private_key>')
 
 
 def test_get_connection_with_admin():
@@ -43,7 +60,8 @@ def test_get_connection_none_if_exception():
         actual = _lambda.get_connection(secret_dict, use_admin=False)
 
         assert actual is None
-        mock_connector.connect.assert_called_once_with(user='smith', account='mycompany', private_key='<private_key>')
+        mock_connector.connect.assert_called_once_with(
+            user='smith', account='mycompany', private_key='<private_key>')
 
 
 @pytest.mark.parametrize('rsa_public_key_fp, rsa_public_key_2_fp, expected', [

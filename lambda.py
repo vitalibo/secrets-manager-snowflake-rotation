@@ -1,10 +1,13 @@
+import base64
+import hashlib
 import json
 import logging
 import os
 import subprocess
 
 import boto3
-import snowflake.connector as connector
+from cryptography.hazmat.primitives import serialization
+from snowflake import connector
 
 logger = logging.getLogger()
 logger.setLevel(os.environ.get('LOG_LEVEL', logging.INFO))
@@ -109,7 +112,7 @@ def set_secret(service_client, arn, token):
     if not conn:
         raise ValueError('Unable to log into Snowflake using credentials in master secret %s' % master_arn)
 
-    current_public_key_fp = calculate_fingerprint(current_dict['public_key'])
+    current_public_key_fp = calculate_public_key_fingerprint(current_dict['public_key'])
     property_name = get_public_key_property(conn, current_dict['user'], current_public_key_fp)
 
     try:
@@ -234,23 +237,21 @@ def get_connection(secret_dict, use_admin=False):
         return None
 
 
-def calculate_fingerprint(public_key):
+def calculate_public_key_fingerprint(public_key_b64):
     """
-    Calculate the fingerprint of a public key
+    Calculate the SHA256 fingerprint of the public key in base64 format
     """
 
-    cmd = ' | '.join((
-        'echo "-----BEGIN PUBLIC KEY-----\n%s\n-----END PUBLIC KEY-----"' % public_key,
-        'openssl rsa -pubin -pubout -outform DER',
-        'openssl dgst -sha256 -binary',
-        'openssl enc -base64'
-    ))
+    der_bytes = base64.b64decode(public_key_b64)
 
-    out = subprocess.run(cmd, shell=True, check=False, capture_output=True)
-    if out.returncode:
-        raise ValueError(out.stderr.decode())
+    public_key = serialization.load_der_public_key(der_bytes)
+    der_bytes = public_key.public_bytes(
+        encoding=serialization.Encoding.DER,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
 
-    return out.stdout.decode().strip()
+    sha256_digest = hashlib.sha256(der_bytes).digest()
+    return base64.b64encode(sha256_digest).decode('utf-8')
 
 
 def get_public_key_property(conn, user, rsa_public_key_fp):
