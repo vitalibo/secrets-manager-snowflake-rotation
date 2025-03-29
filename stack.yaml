@@ -20,13 +20,13 @@ Resources:
       MemorySize: 128
       Code: ./lambda.py
       Layers:
-        - !Ref Layer
+        - !Ref Requirements
 
-  Layer:
+  Requirements:
     Type: AWS::Lambda::LayerVersion
     Properties:
-      LayerName: !Sub "${Name}-layer"
-      Content: ./target/layer.zip
+      LayerName: !Sub "${Name}-requirements"
+      Content: ./target/requirements.zip
       CompatibleRuntimes:
         - python3.12
 
