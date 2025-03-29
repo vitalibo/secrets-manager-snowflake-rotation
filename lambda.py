@@ -163,7 +163,7 @@ def get_secret_dict(service_client, arn, stage, token=None):
     Gets the secret dictionary corresponding for the secret arn, stage, and token
     """
 
-    required_fields = ['account', 'user', 'private_key']
+    required_fields = ['account', 'user', 'private_key', 'public_key']
 
     if token:
         secret = service_client.get_secret_value(SecretId=arn, VersionId=token, VersionStage=stage)

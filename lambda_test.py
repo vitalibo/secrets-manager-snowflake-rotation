@@ -9,6 +9,47 @@ import pytest
 lambda_module = importlib.import_module('lambda')
 
 
+def test_get_secret_dict():
+    mock_service_client = mock.Mock()
+    mock_service_client.get_secret_value.return_value = {
+        'SecretString': '{"user": "smith", "account": "mycompany", '
+                        '"private_key": "<private_key>", "public_key": "<public_key>"}'
+    }
+
+    actual = lambda_module.get_secret_dict(mock_service_client, 'arn', 'AWSCURRENT')
+
+    assert actual == {'user': 'smith', 'account': 'mycompany',
+                      'private_key': '<private_key>', 'public_key': '<public_key>'}
+    mock_service_client.get_secret_value.assert_called_once_with(SecretId='arn', VersionStage='AWSCURRENT')
+
+
+def test_get_secret_dict_with_token():
+    mock_service_client = mock.Mock()
+    mock_service_client.get_secret_value.return_value = {
+        'SecretString': '{"user": "smith", "account": "mycompany", '
+                        '"private_key": "<private_key>", "public_key": "<public_key>"}'
+    }
+
+    actual = lambda_module.get_secret_dict(mock_service_client, 'arn', 'AWSCURRENT', token='123')
+
+    assert actual == {'user': 'smith', 'account': 'mycompany',
+                      'private_key': '<private_key>', 'public_key': '<public_key>'}
+    mock_service_client.get_secret_value.assert_called_once_with(
+        SecretId='arn', VersionId='123', VersionStage='AWSCURRENT')
+
+
+def test_get_secret_dict_no_required_fields():
+    mock_service_client = mock.Mock()
+    mock_service_client.get_secret_value.return_value = {
+        'SecretString': '{"user": "smith", "account": "mycompany", "public_key": "<public_key>"}'
+    }
+
+    with pytest.raises(KeyError, match='private_key key is missing from secret JSON'):
+        lambda_module.get_secret_dict(mock_service_client, 'arn', 'AWSCURRENT')
+
+    mock_service_client.get_secret_value.assert_called_once_with(SecretId='arn', VersionStage='AWSCURRENT')
+
+
 def test_generate_key_pair():
     private_key, public_key = lambda_module.generate_key_pair()
 
