@@ -1,7 +1,35 @@
 import importlib
+import os
+import subprocess
+import tempfile
 from unittest import mock
 
 import pytest
+
+lambda_module = importlib.import_module('lambda')
+
+
+def test_generate_key_pair():
+    private_key, public_key = lambda_module.generate_key_pair()
+
+    with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp_file:
+        private_key_pem = f'-----BEGIN PRIVATE KEY-----\n{private_key}\n-----END PRIVATE KEY-----\n'
+        tmp_file.write(private_key_pem)
+
+    try:
+        cmd = f'openssl rsa -in {tmp_file.name} -pubout'
+        process = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
+
+        derived_public_key = (
+            process.stdout.strip()
+            .removeprefix('-----BEGIN PUBLIC KEY-----')
+            .removesuffix('-----END PUBLIC KEY-----')
+            .replace('\n', '')
+        )
+
+        assert derived_public_key == public_key
+    finally:
+        os.remove(tmp_file.name)
 
 
 def test_calculate_public_key_fingerprint():
@@ -14,8 +42,7 @@ def test_calculate_public_key_fingerprint():
         'iKaH2sWqQgWt3ym1ee+q+VAEyFCWWffx43xDU4YdLD7Oadkr8hl2NDXspr1tVycw' \
         'SQIDAQAB'
 
-    _lambda = importlib.import_module('lambda')
-    actual = _lambda.calculate_public_key_fingerprint(public_key)
+    actual = lambda_module.calculate_public_key_fingerprint(public_key)
 
     assert actual == 'LZA+fUAlY+/ddCn8doeOlv63ltihKHvpDMKnIeNyv4A='
 

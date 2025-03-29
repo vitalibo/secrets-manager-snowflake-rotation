@@ -3,10 +3,10 @@ import hashlib
 import json
 import logging
 import os
-import subprocess
 
 import boto3
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from snowflake import connector
 
 logger = logging.getLogger()
@@ -182,38 +182,33 @@ def get_secret_dict(service_client, arn, stage, token=None):
 
 def generate_key_pair():
     """
-    Generate a new RSA key pair
+    Generate a new RSA key pair and return the private and public keys in base64 format
     """
 
-    cmd = 'openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out /tmp/rsa_key.p8 -nocrypt'
-    out = subprocess.run(cmd, shell=True, check=False, capture_output=True)
-    if out.returncode:
-        raise ValueError(out.stderr.decode())
+    private_key_obj = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 
-    with open('/tmp/rsa_key.p8', 'r', encoding='utf-8') as f:
-        private_key = (
-            f.read()
-            .strip()
-            .removeprefix('-----BEGIN PRIVATE KEY-----')
-            .removesuffix('-----END PRIVATE KEY-----')
+    private_key_pem = private_key_obj.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption()
+    ).decode('utf-8')
+
+    public_key_obj = private_key_obj.public_key()
+    public_key_pem = public_key_obj.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode('utf-8')
+
+    def key_base64(key_pem, pem_type):
+        return key_pem \
+            .strip() \
+            .removeprefix(f'-----BEGIN {pem_type} KEY-----') \
+            .removesuffix(f'-----END {pem_type} KEY-----') \
             .replace('\n', '')
-        )
 
-    cmd = 'openssl rsa -in /tmp/rsa_key.p8 -pubout -out /tmp/rsa_key.pub'
-    out = subprocess.run(cmd, shell=True, check=False, capture_output=True)
-    if out.returncode:
-        raise ValueError(out.stderr.decode())
-
-    with open('/tmp/rsa_key.pub', 'r', encoding='utf-8') as f:
-        public_key = (
-            f.read()
-            .strip()
-            .removeprefix('-----BEGIN PUBLIC KEY-----')
-            .removesuffix('-----END PUBLIC KEY-----')
-            .replace('\n', '')
-        )
-
-    return private_key, public_key
+    private_key_b64 = key_base64(private_key_pem, pem_type='PRIVATE')
+    public_key_b64 = key_base64(public_key_pem, pem_type='PUBLIC')
+    return private_key_b64, public_key_b64
 
 
 def get_connection(secret_dict, use_admin=False):
