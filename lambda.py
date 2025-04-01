@@ -22,7 +22,7 @@ def handler(event, context):  # pylint: disable=unused-argument
     token = event['ClientRequestToken']
     step = event['Step']
 
-    service_client = boto3.client('secretsmanager')
+    service_client = boto3.client('secretsmanager', endpoint_url=os.environ['SECRETS_MANAGER_ENDPOINT'])
 
     metadata = service_client.describe_secret(SecretId=arn)
     if 'RotationEnabled' in metadata and not metadata['RotationEnabled']:

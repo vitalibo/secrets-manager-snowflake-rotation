@@ -12,6 +12,10 @@ Resources:
       Role: !GetAtt Role.Arn
       Timeout: 30
       MemorySize: 128
+      Environment:
+        Variables:
+          LOG_LEVEL: INFO
+          SECRETS_MANAGER_ENDPOINT: !Sub "https://secretsmanager.${AWS::Region}.amazonaws.com"
       Code: ./lambda.py
       Layers:
         - !Ref Requirements
