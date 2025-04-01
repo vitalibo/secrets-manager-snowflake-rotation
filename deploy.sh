@@ -48,6 +48,8 @@ aws cloudformation package \
   --s3-prefix $PREFIX \
   --output-template-file packaged-stack.yaml
 
+aws s3 cp packaged-stack.yaml s3://$BUCKET/$PREFIX/stack.template
+
 aws cloudformation deploy \
   --template-file packaged-stack.yaml \
   --stack-name $NAME \

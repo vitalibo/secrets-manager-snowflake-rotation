@@ -11,11 +11,15 @@ designed specifically to allow for uninterrupted credential rotation.
 
 ### Usage
 
-To deploy lambda function, run the following command:
+To deploy lambda function, you can use this link
+
+[![](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?#/stacks/new?templateURL=https://vitalibo-public-us-east-1.s3.amazonaws.com/snowflake-keypair-rotation/latest/stack.template)
+
+or run the following command:
 
 ```bash
 make deploy name='snowflake-keypair-rotation' \
-            bucket='s3://codebase-us-east-1/prod/snowflake-keypair-rotation/1.0.0' \
+            bucket='s3://vitalibo-public-us-east-1/snowflake-keypair-rotation/latest' \
             profile='my-profile'
 ```
 
