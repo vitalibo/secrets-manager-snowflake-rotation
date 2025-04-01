@@ -15,13 +15,10 @@ codestyle:
 test:
 	pytest -v -p no:cacheprovider --disable-warnings ./lambda_test.py
 
-build:
-	./build.sh $(PYTHON_VERSION)
-
 deploy:
-	./deploy.sh
+	./deploy.sh $(name) $(bucket) $(PYTHON_VERSION) $(profile)
 
 clean:
 	rm -rf ./.pytest_cache ./build ./dist ./target ./.pylintrc
 
-.PHONY: init install codestyle test build deploy
+.PHONY: init install codestyle test deploy clean
