@@ -8,7 +8,7 @@ if [[ $# -ne 3 ]] && [[ $# -ne 4 ]] ;  then
   echo ''
   echo 'Options:'
   echo '  name           Name used as prefix for resources'
-  echo '  bucket         S3 bucket name used to store source code'
+  echo '  bucket         S3 bucket URI used to store source code (format: s3://<bucket>/<prefix>)'
   echo '  python         Python version to use'
   echo '  profile        Use a specific AWS profile from your credential file'
   exit 1
@@ -16,6 +16,13 @@ fi
 
 NAME=$1
 BUCKET=$2
+if [[ $BUCKET =~ s3://([^/]+)/(.+) ]]; then
+  BUCKET=${BASH_REMATCH[1]}
+  PREFIX=${BASH_REMATCH[2]}
+else
+  echo 'Invalid bucket format. Must be s3://<bucket>/<prefix>'
+  exit 1
+fi
 PYTHON_VERSION=$3
 if [[ $# -eq 4 ]] ; then
   export AWS_PROFILE=$4
@@ -38,7 +45,7 @@ trap "rm -f packaged-stack.yaml" EXIT
 aws cloudformation package \
   --template stack.yaml \
   --s3-bucket $BUCKET \
-  --s3-prefix $NAME \
+  --s3-prefix $PREFIX \
   --output-template-file packaged-stack.yaml
 
 aws cloudformation deploy \
