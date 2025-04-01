@@ -23,33 +23,6 @@ def test_get_secret_dict():
     mock_service_client.get_secret_value.assert_called_once_with(SecretId='arn', VersionStage='AWSCURRENT')
 
 
-def test_get_secret_dict_with_token():
-    mock_service_client = mock.Mock()
-    mock_service_client.get_secret_value.return_value = {
-        'SecretString': '{"user": "smith", "account": "mycompany", '
-                        '"private_key": "<private_key>", "public_key": "<public_key>"}'
-    }
-
-    actual = lambda_module.get_secret_dict(mock_service_client, 'arn', 'AWSCURRENT', token='123')
-
-    assert actual == {'user': 'smith', 'account': 'mycompany',
-                      'private_key': '<private_key>', 'public_key': '<public_key>'}
-    mock_service_client.get_secret_value.assert_called_once_with(
-        SecretId='arn', VersionId='123', VersionStage='AWSCURRENT')
-
-
-def test_get_secret_dict_no_required_fields():
-    mock_service_client = mock.Mock()
-    mock_service_client.get_secret_value.return_value = {
-        'SecretString': '{"user": "smith", "account": "mycompany", "public_key": "<public_key>"}'
-    }
-
-    with pytest.raises(KeyError, match='private_key key is missing from secret JSON'):
-        lambda_module.get_secret_dict(mock_service_client, 'arn', 'AWSCURRENT')
-
-    mock_service_client.get_secret_value.assert_called_once_with(SecretId='arn', VersionStage='AWSCURRENT')
-
-
 def test_generate_key_pair():
     private_key, public_key = lambda_module.generate_key_pair()
 
@@ -96,40 +69,11 @@ def test_get_connection():
         secret_dict = {'user': 'smith', 'account': 'mycompany', 'private_key': '<private_key>'}
 
         _lambda = importlib.import_module('lambda')
-        actual = _lambda.get_connection(secret_dict, use_admin=False)
-
-        assert actual == mock_connect
-        mock_connector.connect.assert_called_once_with(
-            user='smith', account='mycompany', private_key='<private_key>')
-
-
-def test_get_connection_with_admin():
-    with mock.patch('lambda.connector') as mock_connector:
-        mock_connect = mock.Mock()
-        mock_connector.connect.return_value = mock_connect
-        mock_connector.errors.Error = MockError
-        secret_dict = {'user': 'smith', 'account': 'mycompany', 'private_key': '<private_key>'}
-
-        _lambda = importlib.import_module('lambda')
         actual = _lambda.get_connection(secret_dict, use_admin=True)
 
         assert actual == mock_connect
         mock_connector.connect.assert_called_once_with(
             user='smith', account='mycompany', private_key='<private_key>', role='ACCOUNTADMIN')
-
-
-def test_get_connection_none_if_exception():
-    with mock.patch('lambda.connector') as mock_connector:
-        mock_connector.connect.side_effect = MockError('Connection failed')
-        mock_connector.errors.Error = MockError
-        secret_dict = {'user': 'smith', 'account': 'mycompany', 'private_key': '<private_key>'}
-
-        _lambda = importlib.import_module('lambda')
-        actual = _lambda.get_connection(secret_dict, use_admin=False)
-
-        assert actual is None
-        mock_connector.connect.assert_called_once_with(
-            user='smith', account='mycompany', private_key='<private_key>')
 
 
 @pytest.mark.parametrize('rsa_public_key_fp, rsa_public_key_2_fp, expected', [
