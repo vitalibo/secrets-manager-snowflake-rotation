@@ -1,17 +1,11 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: "Create a Lambda function to rotate Snowflake credentials in AWS Secrets Manager"
-Parameters:
-  Name:
-    Type: String
-    Description: "Resource name"
-    MinLength: 3
-    AllowedPattern: "[a-zA-Z0-9-]+"
 
 Resources:
   Lambda:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub "${Name}-lambda"
+      FunctionName: !Ref AWS::StackName
       Description: "AWS Secrets Manager Snowflake Rotation Lambda"
       Handler: lambda.handler
       Runtime: python3.12
@@ -25,7 +19,7 @@ Resources:
   Requirements:
     Type: AWS::Lambda::LayerVersion
     Properties:
-      LayerName: !Sub "${Name}-requirements"
+      LayerName: !Sub "${AWS::StackName}-requirements"
       Content: ./target/requirements.zip
       CompatibleRuntimes:
         - python3.12
@@ -33,7 +27,7 @@ Resources:
   Role:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "${Name}-role"
+      RoleName: !Ref AWS::StackName
       Description: "Role for AWS Secrets Manager Snowflake Rotation Lambda"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -63,7 +57,7 @@ Resources:
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${Name}-lambda"
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}"
       RetentionInDays: 30
 
   Permission:

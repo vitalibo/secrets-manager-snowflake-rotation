@@ -50,6 +50,5 @@ aws cloudformation package \
 
 aws cloudformation deploy \
   --template-file packaged-stack.yaml \
-  --stack-name "$NAME-stack" \
-  --parameter-overrides Name=$NAME \
+  --stack-name $NAME \
   --capabilities 'CAPABILITY_NAMED_IAM'
