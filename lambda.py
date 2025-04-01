@@ -22,7 +22,7 @@ def handler(event, context):  # pylint: disable=unused-argument
     token = event['ClientRequestToken']
     step = event['Step']
 
-    service_client = boto3.client('secretsmanager', endpoint_url=os.environ['SECRETS_MANAGER_ENDPOINT'])
+    service_client = boto3.client('secretsmanager')
 
     metadata = service_client.describe_secret(SecretId=arn)
     if 'RotationEnabled' in metadata and not metadata['RotationEnabled']:
@@ -261,7 +261,7 @@ def get_public_key_property(conn, user, rsa_public_key_fp):
     properties = []
     for row in cur:
         if row[0] in ('RSA_PUBLIC_KEY_FP', 'RSA_PUBLIC_KEY_2_FP'):
-            fingerprint = row[1].strip()[len('SHA256:') + 1:]
+            fingerprint = row[1].strip()[len('SHA256:'):]
             if not fingerprint:
                 return row[0][:-3]
             if fingerprint != rsa_public_key_fp:
