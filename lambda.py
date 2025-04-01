@@ -16,6 +16,10 @@ logger.setLevel(os.environ.get('LOG_LEVEL', logging.INFO))
 def handler(event, context):  # pylint: disable=unused-argument
     """
     Secrets Manager Snowflake Handler
+
+    This handler is used to rotate the Snowflake key pair for a user in AWS Secrets Manager.
+    This rotation is done by generating a new key pair, setting the new public key in Snowflake,
+    and marking the new key as current.
     """
 
     arn = event['SecretId']
